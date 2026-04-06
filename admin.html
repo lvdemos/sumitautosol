@@ -88,6 +88,11 @@
     cursor:pointer;transition:border-color 0.2s,color 0.2s;
   }
   .btn-logout:hover{border-color:var(--accent);color:var(--accent);}
+  .btn-cancel{
+    background:none;border:none;color:#c03232;font-size:18px;line-height:1;
+    cursor:pointer;padding:2px 6px;border-radius:6px;transition:background 0.15s;
+  }
+  .btn-cancel:hover{background:rgba(192,50,50,0.1);}
 
   @media(max-width:768px){
     .stats-row{grid-template-columns:1fr 1fr;}
@@ -117,6 +122,9 @@
     <button class="btn-cta" style="width:100%;text-align:center;display:block;padding:13px;" onclick="checkPassword()">
       Sign In
     </button>
+    <a href="index.html" style="display:block;text-align:center;font-size:13px;color:var(--ink3);text-decoration:none;margin-top:-0.25rem;">
+      ← Back to site
+    </a>
   </div>
 </div>
 
@@ -193,7 +201,7 @@
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-  import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
   const app = initializeApp({
     apiKey: "AIzaSyAFN69H0F6zPqjOKZ-evKUZWSByXvvQQuQ",
     authDomain: "summitautosol.firebaseapp.com",
@@ -208,6 +216,8 @@
   window._getDocs = getDocs;
   window._query = query;
   window._orderBy = orderBy;
+  window._deleteDoc = deleteDoc;
+  window._doc = doc;
 </script>
 
 <script>
@@ -286,6 +296,19 @@
     renderTable(list);
   }
 
+  async function cancelBooking(id) {
+    if (!confirm('Cancel this booking? This cannot be undone.')) return;
+    try {
+      await window._deleteDoc(window._doc(window._db, 'bookings', id));
+      allBookings = allBookings.filter(b => b.id !== id);
+      updateStats();
+      applyFilters();
+    } catch(e) {
+      console.error(e);
+      alert('Failed to cancel booking. Try again.');
+    }
+  }
+
   function renderTable(bookings) {
     if (!bookings.length) {
       document.getElementById('table-wrap').innerHTML = '<div class="table-empty">No bookings match your filters</div>';
@@ -301,10 +324,12 @@
           <th>Date</th>
           <th>Time</th>
           <th>Price</th>
-          <th>Address</th><th>Submitted</th>
+          <th>Address</th>
+          <th>Submitted</th>
+          <th></th>
         </tr></thead>
         <tbody>
-          ${bookings.map(b => `<tr>
+          ${bookings.map(b => `<tr id="row-${b.id}">
             <td>
               <div class="customer-name">${b.customer_name||'—'}</div>
               <div class="customer-detail">${b.to_email||''}</div>
@@ -318,6 +343,7 @@
             <td style="font-weight:600;">${b.price||'—'}</td>
             <td style="font-size:13px;color:var(--ink2);">${b.address||'—'}</td>
             <td style="font-size:12px;color:var(--ink3);white-space:nowrap;">${b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</td>
+            <td><button class="btn-cancel" title="Cancel booking" onclick="cancelBooking('${b.id}')">×</button></td>
           </tr>`).join('')}
         </tbody>
       </table>`;
